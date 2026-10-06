@@ -1,0 +1,17 @@
+{
+  "name": "full_stack_part_4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.1.0",
+    "mongoose": "^8.19.0"
+  }
+}
