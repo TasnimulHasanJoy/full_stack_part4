@@ -11,3 +11,37 @@ describe('dummy', () => {
     assert.strictEqual(result, 1)
   })
 })
+
+describe('total likes', () => {
+  test('of empty list is zero', () => {
+    const result = listHelper.totalLikes([])
+
+    assert.strictEqual(result, 0)
+  })
+
+  test('when list has only one blog, equals the likes of that', () => {
+    const blogs = [
+      {
+        title: 'Go To Statement Considered Harmful',
+        author: 'Edser W. Dijkstra',
+        likes: 5
+      }
+    ]
+
+    const result = listHelper.totalLikes(blogs)
+
+    assert.strictEqual(result, 5)
+  })
+
+  test('of a bigger list is calculated right', () => {
+    const blogs = [
+      { title: 'First blog', likes: 5 },
+      { title: 'Second blog', likes: 7 },
+      { title: 'Third blog', likes: 3 }
+    ]
+
+    const result = listHelper.totalLikes(blogs)
+
+    assert.strictEqual(result, 15)
+  })
+})
