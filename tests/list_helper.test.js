@@ -23,7 +23,7 @@ describe('total likes', () => {
     const blogs = [
       {
         title: 'Go To Statement Considered Harmful',
-        author: 'Edser W. Dijkstra',
+        author: 'Edsger W. Dijkstra',
         likes: 5
       }
     ]
@@ -43,5 +43,31 @@ describe('total likes', () => {
     const result = listHelper.totalLikes(blogs)
 
     assert.strictEqual(result, 15)
+  })
+})
+
+describe('favorite blog', () => {
+  test('returns the blog with the most likes', () => {
+    const blogs = [
+      {
+        title: 'First blog',
+        author: 'Author One',
+        likes: 5
+      },
+      {
+        title: 'Favorite blog',
+        author: 'Author Two',
+        likes: 12
+      },
+      {
+        title: 'Third blog',
+        author: 'Author Three',
+        likes: 3
+      }
+    ]
+
+    const result = listHelper.favoriteBlog(blogs)
+
+    assert.deepStrictEqual(result, blogs[1])
   })
 })
