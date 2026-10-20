@@ -83,3 +83,18 @@ test('a new blog can be created with a POST request', async () => {
   assert.strictEqual(response.body.likes, newBlog.likes)
   assert.strictEqual(typeof response.body.id, 'string')
 })
+
+test('a blog without likes defaults to zero', async () => {
+  const newBlog = {
+    title: 'A blog without likes',
+    author: 'Test Author',
+    url: 'https://example.com/no-likes'
+  }
+
+  const response = await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(201)
+
+  assert.strictEqual(response.body.likes, 0)
+})
