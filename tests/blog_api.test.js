@@ -4,6 +4,7 @@ const { test, before, after, beforeEach } = require('node:test')
 const assert = require('node:assert/strict')
 const supertest = require('supertest')
 const mongoose = require('mongoose')
+const jwt = require('jsonwebtoken')
 
 const app = require('../app')
 const Blog = require('../models/blog')
@@ -11,6 +12,8 @@ const User = require('../models/user')
 const config = require('../utils/config')
 
 const api = supertest(app)
+
+let token
 
 before(async () => {
   await mongoose.connect(config.MONGODB_URI)
@@ -25,6 +28,11 @@ beforeEach(async () => {
     name: 'Blog Test User',
     passwordHash: 'test-hash'
   })
+
+  token = jwt.sign(
+    { username: testUser.username, id: testUser._id },
+    process.env.SECRET
+  )
 
   const blogs = await Blog.insertMany([
     {
@@ -80,9 +88,14 @@ test('a new blog can be created with a POST request', async () => {
     likes: 7
   }
 
-  await api.post('/api/blogs').send(newBlog).expect(201)
+  await api
+    .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
+    .send(newBlog)
+    .expect(201)
 
   const response = await api.get('/api/blogs')
+
   assert.equal(response.body.length, 3)
   assert.ok(response.body.some(blog => blog.title === newBlog.title))
 })
@@ -94,7 +107,11 @@ test('a blog without likes defaults to zero', async () => {
     url: 'https://example.com/no-likes'
   }
 
-  const response = await api.post('/api/blogs').send(newBlog).expect(201)
+  const response = await api
+    .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
+    .send(newBlog)
+    .expect(201)
 
   assert.equal(response.body.likes, 0)
 })
@@ -131,16 +148,12 @@ test('a blog can be updated', async () => {
   const blogsAtStart = await api.get('/api/blogs')
   const blogToUpdate = blogsAtStart.body[0]
 
-  const updatedBlog = {
-    likes: blogToUpdate.likes + 1
-  }
-
   const response = await api
     .put(`/api/blogs/${blogToUpdate.id}`)
-    .send(updatedBlog)
+    .send({ likes: blogToUpdate.likes + 1 })
     .expect(200)
 
-  assert.equal(response.body.likes, updatedBlog.likes)
+  assert.equal(response.body.likes, blogToUpdate.likes + 1)
 })
 
 test('users are returned with their blogs', async () => {

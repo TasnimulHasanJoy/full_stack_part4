@@ -3,22 +3,12 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const Blog = require('./models/blog')
 const User = require('./models/user')
+const middleware = require('./utils/middleware')
 
 const app = express()
 
 app.use(express.json())
-
-const tokenExtractor = (request, response, next) => {
-  const authorization = request.get('authorization')
-
-  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
-    request.token = authorization.substring(7)
-  }
-
-  next()
-}
-
-app.use(tokenExtractor)
+app.use(middleware.tokenExtractor)
 
 app.get('/api/blogs', async (request, response) => {
   const blogs = await Blog.find({}).populate('user', {
