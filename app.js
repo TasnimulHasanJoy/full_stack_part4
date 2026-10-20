@@ -1,11 +1,24 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 const Blog = require('./models/blog')
 const User = require('./models/user')
 
 const app = express()
 
 app.use(express.json())
+
+const tokenExtractor = (request, response, next) => {
+  const authorization = request.get('authorization')
+
+  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
+    request.token = authorization.substring(7)
+  }
+
+  next()
+}
+
+app.use(tokenExtractor)
 
 app.get('/api/blogs', async (request, response) => {
   const blogs = await Blog.find({}).populate('user', {
@@ -14,6 +27,35 @@ app.get('/api/blogs', async (request, response) => {
   })
 
   response.json(blogs)
+})
+
+app.post('/api/login', async (request, response) => {
+  const { username, password } = request.body
+  const user = await User.findOne({ username })
+
+  const passwordCorrect =
+    user === null
+      ? false
+      : await bcrypt.compare(password, user.passwordHash)
+
+  if (!(user && passwordCorrect)) {
+    return response.status(401).json({
+      error: 'invalid username or password'
+    })
+  }
+
+  const userForToken = {
+    username: user.username,
+    id: user._id
+  }
+
+  const token = jwt.sign(userForToken, process.env.SECRET)
+
+  response.status(200).json({
+    token,
+    username: user.username,
+    name: user.name
+  })
 })
 
 app.post('/api/blogs', async (request, response) => {
@@ -25,11 +67,27 @@ app.post('/api/blogs', async (request, response) => {
     })
   }
 
-  const user = await User.findOne({})
+  if (!request.token) {
+    return response.status(401).json({
+      error: 'token missing'
+    })
+  }
+
+  let decodedToken
+
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET)
+  } catch (error) {
+    return response.status(401).json({
+      error: 'invalid token'
+    })
+  }
+
+  const user = await User.findById(decodedToken.id)
 
   if (!user) {
-    return response.status(400).json({
-      error: 'create a user before creating a blog'
+    return response.status(401).json({
+      error: 'user not found'
     })
   }
 
@@ -110,7 +168,6 @@ app.post('/api/users', async (request, response) => {
     })
 
     const savedUser = await user.save()
-
     response.status(201).json(savedUser)
   } catch (error) {
     if (error.code === 11000) {
