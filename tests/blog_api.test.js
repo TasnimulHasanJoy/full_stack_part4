@@ -57,3 +57,29 @@ test('blogs have id property instead of _id', async () => {
   assert.strictEqual(typeof blog.id, 'string')
   assert.strictEqual(blog._id, undefined)
 })
+
+test('a new blog can be created with a POST request', async () => {
+  const newBlog = {
+    title: 'A blog created by a test',
+    author: 'Test Author',
+    url: 'https://example.com/new',
+    likes: 10
+  }
+
+  const blogsAtStart = await Blog.find({})
+
+  const response = await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/)
+
+  const blogsAtEnd = await Blog.find({})
+
+  assert.strictEqual(blogsAtEnd.length, blogsAtStart.length + 1)
+  assert.strictEqual(response.body.title, newBlog.title)
+  assert.strictEqual(response.body.author, newBlog.author)
+  assert.strictEqual(response.body.url, newBlog.url)
+  assert.strictEqual(response.body.likes, newBlog.likes)
+  assert.strictEqual(typeof response.body.id, 'string')
+})

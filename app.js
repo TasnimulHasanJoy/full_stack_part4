@@ -10,4 +10,11 @@ app.get('/api/blogs', async (request, response) => {
   response.json(blogs)
 })
 
+app.post('/api/blogs', async (request, response) => {
+  const blog = new Blog(request.body)
+  const savedBlog = await blog.save()
+
+  response.status(201).json(savedBlog)
+})
+
 module.exports = app
