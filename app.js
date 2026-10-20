@@ -1,5 +1,7 @@
 const express = require('express')
+const bcrypt = require('bcryptjs')
 const Blog = require('./models/blog')
+const User = require('./models/user')
 
 const app = express()
 
@@ -38,6 +40,25 @@ app.put('/api/blogs/:id', async (request, response) => {
   )
 
   response.json(updatedBlog)
+})
+
+app.get('/api/users', async (request, response) => {
+  const users = await User.find({})
+  response.json(users)
+})
+
+app.post('/api/users', async (request, response) => {
+  const passwordHash = await bcrypt.hash(request.body.password, 10)
+
+  const user = new User({
+    username: request.body.username,
+    name: request.body.name,
+    passwordHash
+  })
+
+  const savedUser = await user.save()
+
+  response.status(201).json(savedUser)
 })
 
 module.exports = app
