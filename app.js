@@ -48,17 +48,52 @@ app.get('/api/users', async (request, response) => {
 })
 
 app.post('/api/users', async (request, response) => {
-  const passwordHash = await bcrypt.hash(request.body.password, 10)
+  const { username, password, name } = request.body
 
-  const user = new User({
-    username: request.body.username,
-    name: request.body.name,
-    passwordHash
-  })
+  if (
+    typeof username !== 'string' ||
+    typeof password !== 'string' ||
+    username.length === 0 ||
+    password.length === 0
+  ) {
+    return response.status(400).json({
+      error: 'username and password are required'
+    })
+  }
 
-  const savedUser = await user.save()
+  if (username.length < 3 || password.length < 3) {
+    return response.status(400).json({
+      error: 'username and password must be at least 3 characters long'
+    })
+  }
 
-  response.status(201).json(savedUser)
+  try {
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    const user = new User({
+      username,
+      name,
+      passwordHash
+    })
+
+    const savedUser = await user.save()
+
+    response.status(201).json(savedUser)
+  } catch (error) {
+    if (error.code === 11000) {
+      return response.status(400).json({
+        error: 'username must be unique'
+      })
+    }
+
+    if (error.name === 'ValidationError') {
+      return response.status(400).json({
+        error: error.message
+      })
+    }
+
+    throw error
+  }
 })
 
 module.exports = app

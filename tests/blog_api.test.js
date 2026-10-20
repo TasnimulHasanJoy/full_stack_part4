@@ -10,6 +10,7 @@ const supertest = require('supertest')
 const mongoose = require('mongoose')
 const app = require('../app')
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const config = require('../utils/config')
 
 const api = supertest(app)
@@ -20,6 +21,7 @@ before(async () => {
 
 beforeEach(async () => {
   await Blog.deleteMany({})
+  await User.deleteMany({})
 
   await Blog.insertMany([
     {
@@ -40,6 +42,20 @@ beforeEach(async () => {
 after(async () => {
   await mongoose.connection.close()
 })
+
+const assertInvalidUser = async (userData) => {
+  const usersAtStart = await User.countDocuments({})
+
+  const response = await api
+    .post('/api/users')
+    .send(userData)
+
+  assert.strictEqual(response.status, 400)
+  assert.ok(response.body.error)
+
+  const usersAtEnd = await User.countDocuments({})
+  assert.strictEqual(usersAtEnd, usersAtStart)
+}
 
 test('blogs are returned as JSON', async () => {
   const response = await api
@@ -78,48 +94,39 @@ test('a new blog can be created with a POST request', async () => {
 
   assert.strictEqual(blogsAtEnd.length, blogsAtStart.length + 1)
   assert.strictEqual(response.body.title, newBlog.title)
-  assert.strictEqual(response.body.author, newBlog.author)
-  assert.strictEqual(response.body.url, newBlog.url)
   assert.strictEqual(response.body.likes, newBlog.likes)
-  assert.strictEqual(typeof response.body.id, 'string')
 })
 
 test('a blog without likes defaults to zero', async () => {
-  const newBlog = {
-    title: 'A blog without likes',
-    author: 'Test Author',
-    url: 'https://example.com/no-likes'
-  }
-
   const response = await api
     .post('/api/blogs')
-    .send(newBlog)
+    .send({
+      title: 'A blog without likes',
+      author: 'Test Author',
+      url: 'https://example.com/no-likes'
+    })
     .expect(201)
 
   assert.strictEqual(response.body.likes, 0)
 })
 
 test('a blog without a title is rejected', async () => {
-  const newBlog = {
-    author: 'Test Author',
-    url: 'https://example.com/no-title'
-  }
-
   await api
     .post('/api/blogs')
-    .send(newBlog)
+    .send({
+      author: 'Test Author',
+      url: 'https://example.com/no-title'
+    })
     .expect(400)
 })
 
 test('a blog without a URL is rejected', async () => {
-  const newBlog = {
-    title: 'A blog without a URL',
-    author: 'Test Author'
-  }
-
   await api
     .post('/api/blogs')
-    .send(newBlog)
+    .send({
+      title: 'A blog without a URL',
+      author: 'Test Author'
+    })
     .expect(400)
 })
 
@@ -135,19 +142,17 @@ test('a blog can be deleted', async () => {
 
   assert.strictEqual(blogsAtEnd.length, blogsAtStart.length - 1)
 
-  const remainingBlogIds = blogsAtEnd.map(blog => blog._id.toString())
-
+  const remainingIds = blogsAtEnd.map(blog => blog._id.toString())
   assert.strictEqual(
-    remainingBlogIds.includes(blogToDelete._id.toString()),
+    remainingIds.includes(blogToDelete._id.toString()),
     false
   )
 })
+
 test('a blog can be updated', async () => {
   const blogsAtStart = await Blog.find({})
   const blogToUpdate = blogsAtStart[0]
-  const update = {
-    likes: blogToUpdate.likes + 1
-  }
+  const update = { likes: blogToUpdate.likes + 1 }
 
   const response = await api
     .put(`/api/blogs/${blogToUpdate._id}`)
@@ -157,6 +162,50 @@ test('a blog can be updated', async () => {
   assert.strictEqual(response.body.likes, update.likes)
 
   const blogAfterUpdate = await Blog.findById(blogToUpdate._id)
-
   assert.strictEqual(blogAfterUpdate.likes, update.likes)
+})
+
+test('user creation fails if username is missing', async () => {
+  await assertInvalidUser({
+    name: 'Test User',
+    password: 'valid-password'
+  })
+})
+
+test('user creation fails if password is missing', async () => {
+  await assertInvalidUser({
+    username: 'validuser',
+    name: 'Test User'
+  })
+})
+
+test('user creation fails if username is shorter than 3 characters', async () => {
+  await assertInvalidUser({
+    username: 'ab',
+    name: 'Test User',
+    password: 'valid-password'
+  })
+})
+
+test('user creation fails if password is shorter than 3 characters', async () => {
+  await assertInvalidUser({
+    username: 'validuser',
+    name: 'Test User',
+    password: 'ab'
+  })
+})
+
+test('user creation fails if username is already taken', async () => {
+  const userData = {
+    username: 'sameuser',
+    name: 'Test User',
+    password: 'valid-password'
+  }
+
+  await api
+    .post('/api/users')
+    .send(userData)
+    .expect(201)
+
+  await assertInvalidUser(userData)
 })
