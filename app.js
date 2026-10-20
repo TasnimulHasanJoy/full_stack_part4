@@ -8,7 +8,11 @@ const app = express()
 app.use(express.json())
 
 app.get('/api/blogs', async (request, response) => {
-  const blogs = await Blog.find({})
+  const blogs = await Blog.find({}).populate('user', {
+    username: 1,
+    name: 1
+  })
+
   response.json(blogs)
 })
 
@@ -21,13 +25,36 @@ app.post('/api/blogs', async (request, response) => {
     })
   }
 
-  const blog = new Blog(request.body)
+  const user = await User.findOne({})
+
+  if (!user) {
+    return response.status(400).json({
+      error: 'create a user before creating a blog'
+    })
+  }
+
+  const blog = new Blog({
+    ...request.body,
+    user: user._id
+  })
+
   const savedBlog = await blog.save()
+
+  user.blogs = user.blogs.concat(savedBlog._id)
+  await user.save()
 
   response.status(201).json(savedBlog)
 })
 
 app.delete('/api/blogs/:id', async (request, response) => {
+  const blog = await Blog.findById(request.params.id)
+
+  if (blog && blog.user) {
+    await User.findByIdAndUpdate(blog.user, {
+      $pull: { blogs: blog._id }
+    })
+  }
+
   await Blog.findByIdAndDelete(request.params.id)
   response.status(204).end()
 })
@@ -43,7 +70,13 @@ app.put('/api/blogs/:id', async (request, response) => {
 })
 
 app.get('/api/users', async (request, response) => {
-  const users = await User.find({})
+  const users = await User.find({}).populate('blogs', {
+    url: 1,
+    title: 1,
+    author: 1,
+    likes: 1
+  })
+
   response.json(users)
 })
 
