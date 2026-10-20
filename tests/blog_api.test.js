@@ -49,3 +49,11 @@ test('blogs are returned as JSON', async () => {
 
   assert.strictEqual(response.body.length, 2)
 })
+
+test('blogs have id property instead of _id', async () => {
+  const response = await api.get('/api/blogs')
+  const blog = response.body[0]
+
+  assert.strictEqual(typeof blog.id, 'string')
+  assert.strictEqual(blog._id, undefined)
+})
