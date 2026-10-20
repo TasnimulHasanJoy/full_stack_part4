@@ -142,3 +142,21 @@ test('a blog can be deleted', async () => {
     false
   )
 })
+test('a blog can be updated', async () => {
+  const blogsAtStart = await Blog.find({})
+  const blogToUpdate = blogsAtStart[0]
+  const update = {
+    likes: blogToUpdate.likes + 1
+  }
+
+  const response = await api
+    .put(`/api/blogs/${blogToUpdate._id}`)
+    .send(update)
+    .expect(200)
+
+  assert.strictEqual(response.body.likes, update.likes)
+
+  const blogAfterUpdate = await Blog.findById(blogToUpdate._id)
+
+  assert.strictEqual(blogAfterUpdate.likes, update.likes)
+})
