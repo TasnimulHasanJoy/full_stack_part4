@@ -100,6 +100,19 @@ test('a new blog can be created with a POST request', async () => {
   assert.ok(response.body.some(blog => blog.title === newBlog.title))
 })
 
+test('creating a blog without a token fails with 401', async () => {
+  const newBlog = {
+    title: 'A blog without a token',
+    author: 'Test Author',
+    url: 'https://example.com/no-token'
+  }
+
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(401)
+})
+
 test('a blog without likes defaults to zero', async () => {
   const newBlog = {
     title: 'A blog without likes',
