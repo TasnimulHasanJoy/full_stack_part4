@@ -48,90 +48,59 @@ app.post('/api/login', async (request, response) => {
   })
 })
 
-app.post('/api/blogs', async (request, response) => {
-  const { title, url } = request.body
+app.post(
+  '/api/blogs',
+  middleware.userExtractor,
+  async (request, response) => {
+    const { title, url } = request.body
 
-  if (!title || !url) {
-    return response.status(400).json({
-      error: 'title and url are required'
+    if (!title || !url) {
+      return response.status(400).json({
+        error: 'title and url are required'
+      })
+    }
+
+    const blog = new Blog({
+      ...request.body,
+      user: request.user._id
     })
+
+    const savedBlog = await blog.save()
+
+    request.user.blogs = request.user.blogs.concat(savedBlog._id)
+    await request.user.save()
+
+    response.status(201).json(savedBlog)
   }
+)
 
-  if (!request.token) {
-    return response.status(401).json({
-      error: 'token missing'
-    })
+app.delete(
+  '/api/blogs/:id',
+  middleware.userExtractor,
+  async (request, response) => {
+    const blog = await Blog.findById(request.params.id)
+
+    if (!blog) {
+      return response.status(404).json({
+        error: 'blog not found'
+      })
+    }
+
+    if (String(blog.user) !== String(request.user._id)) {
+      return response.status(403).json({
+        error: 'only the creator can delete this blog'
+      })
+    }
+
+    request.user.blogs = request.user.blogs.filter(
+      blogId => String(blogId) !== String(blog._id)
+    )
+    await request.user.save()
+
+    await Blog.findByIdAndDelete(blog._id)
+    response.status(204).end()
   }
-
-  let decodedToken
-
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET)
-  } catch (error) {
-    return response.status(401).json({
-      error: 'invalid token'
-    })
-  }
-
-  const user = await User.findById(decodedToken.id)
-
-  if (!user) {
-    return response.status(401).json({
-      error: 'user not found'
-    })
-  }
-
-  const blog = new Blog({
-    ...request.body,
-    user: user._id
-  })
-
-  const savedBlog = await blog.save()
-
-  user.blogs = user.blogs.concat(savedBlog._id)
-  await user.save()
-
-  response.status(201).json(savedBlog)
-})
-
-app.delete('/api/blogs/:id', async (request, response) => {
-  if (!request.token) {
-    return response.status(401).json({
-      error: 'token missing'
-    })
-  }
-
-  let decodedToken
-
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET)
-  } catch (error) {
-    return response.status(401).json({
-      error: 'invalid token'
-    })
-  }
-
-  const blog = await Blog.findById(request.params.id)
-
-  if (!blog) {
-    return response.status(404).json({
-      error: 'blog not found'
-    })
-  }
-
-  if (String(blog.user) !== String(decodedToken.id)) {
-    return response.status(403).json({
-      error: 'only the creator can delete this blog'
-    })
-  }
-
-  await User.findByIdAndUpdate(decodedToken.id, {
-    $pull: { blogs: blog._id }
-  })
-
-  await Blog.findByIdAndDelete(blog._id)
-  response.status(204).end()
-})
+)
 
 app.put('/api/blogs/:id', async (request, response) => {
   const updatedBlog = await Blog.findByIdAndUpdate(

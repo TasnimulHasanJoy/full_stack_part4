@@ -122,7 +122,11 @@ test('a blog without a title is rejected', async () => {
     url: 'https://example.com/no-title'
   }
 
-  await api.post('/api/blogs').send(newBlog).expect(400)
+  await api
+    .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
+    .send(newBlog)
+    .expect(400)
 })
 
 test('a blog without a URL is rejected', async () => {
@@ -131,7 +135,11 @@ test('a blog without a URL is rejected', async () => {
     author: 'Test Author'
   }
 
-  await api.post('/api/blogs').send(newBlog).expect(400)
+  await api
+    .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
+    .send(newBlog)
+    .expect(400)
 })
 
 test('a blog can be deleted by its creator', async () => {
