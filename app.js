@@ -95,15 +95,41 @@ app.post('/api/blogs', async (request, response) => {
 })
 
 app.delete('/api/blogs/:id', async (request, response) => {
-  const blog = await Blog.findById(request.params.id)
-
-  if (blog && blog.user) {
-    await User.findByIdAndUpdate(blog.user, {
-      $pull: { blogs: blog._id }
+  if (!request.token) {
+    return response.status(401).json({
+      error: 'token missing'
     })
   }
 
-  await Blog.findByIdAndDelete(request.params.id)
+  let decodedToken
+
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET)
+  } catch (error) {
+    return response.status(401).json({
+      error: 'invalid token'
+    })
+  }
+
+  const blog = await Blog.findById(request.params.id)
+
+  if (!blog) {
+    return response.status(404).json({
+      error: 'blog not found'
+    })
+  }
+
+  if (String(blog.user) !== String(decodedToken.id)) {
+    return response.status(403).json({
+      error: 'only the creator can delete this blog'
+    })
+  }
+
+  await User.findByIdAndUpdate(decodedToken.id, {
+    $pull: { blogs: blog._id }
+  })
+
+  await Blog.findByIdAndDelete(blog._id)
   response.status(204).end()
 })
 

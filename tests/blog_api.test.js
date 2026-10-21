@@ -134,14 +134,45 @@ test('a blog without a URL is rejected', async () => {
   await api.post('/api/blogs').send(newBlog).expect(400)
 })
 
-test('a blog can be deleted', async () => {
+test('a blog can be deleted by its creator', async () => {
   const blogsAtStart = await api.get('/api/blogs')
   const blogToDelete = blogsAtStart.body[0]
 
-  await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204)
+  await api
+    .delete(`/api/blogs/${blogToDelete.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .expect(204)
 
   const blogsAtEnd = await api.get('/api/blogs')
   assert.equal(blogsAtEnd.body.length, blogsAtStart.body.length - 1)
+})
+
+test('a blog cannot be deleted without a token', async () => {
+  const blogs = await api.get('/api/blogs')
+  const blogToKeep = blogs.body[0]
+
+  await api.delete(`/api/blogs/${blogToKeep.id}`).expect(401)
+})
+
+test('a blog cannot be deleted by another user', async () => {
+  const blogs = await api.get('/api/blogs')
+  const blogToKeep = blogs.body[0]
+
+  const anotherUser = await User.create({
+    username: 'anotheruser',
+    name: 'Another User',
+    passwordHash: 'test-hash'
+  })
+
+  const anotherUsersToken = jwt.sign(
+    { username: anotherUser.username, id: anotherUser._id },
+    process.env.SECRET
+  )
+
+  await api
+    .delete(`/api/blogs/${blogToKeep.id}`)
+    .set('Authorization', `Bearer ${anotherUsersToken}`)
+    .expect(403)
 })
 
 test('a blog can be updated', async () => {
